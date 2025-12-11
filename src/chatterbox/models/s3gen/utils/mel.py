@@ -75,6 +75,12 @@ def mel_spectrogram(y, n_fft=1920, num_mels=80, sampling_rate=24000, hop_size=48
     )
     y = y.squeeze(1)
 
+    # Ensure the padded waveform length aligns with hop size to avoid off-by-one frame issues.
+    frame_mod = (y.shape[-1] - win_size) % hop_size
+    if frame_mod != 0 and (y.shape[-1] - frame_mod) >= win_size:
+        y = y[..., :-frame_mod]
+        logger.warning(f"Trimming {frame_mod} samples to align mel frames with hop size.")
+
     window_cpu = hann_window["cpu"]
 
     spec = torch.view_as_real(
@@ -98,3 +104,9 @@ def mel_spectrogram(y, n_fft=1920, num_mels=80, sampling_rate=24000, hop_size=48
     spec = spectral_normalize_torch(spec)
 
     return spec
+
+
+def clear_mel_cache():
+    """Drop cached mel filters and windows to release memory between jobs."""
+    mel_basis.clear()
+    hann_window.clear()

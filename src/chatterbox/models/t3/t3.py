@@ -46,6 +46,7 @@ class T3(nn.Module):
             hp = T3Config.english_only()  # Default to English-only config for backward compatibility
         super().__init__()
         self.hp = hp
+        self._validate_special_tokens()
         self.cfg = LlamaConfig(**LLAMA_CONFIGS[hp.llama_config_name])
         self.tfmr = LlamaModel(self.cfg)
         self.dim = self.cfg.hidden_size
@@ -72,6 +73,17 @@ class T3(nn.Module):
     @property
     def device(self):
         return self.speech_head.weight.device
+
+    def _validate_special_tokens(self):
+        """Guard against misconfigured special tokens that can trigger CUDA asserts."""
+        if not (0 <= self.hp.start_text_token < self.hp.text_tokens_dict_size):
+            raise ValueError(f"start_text_token {self.hp.start_text_token} exceeds text vocab {self.hp.text_tokens_dict_size}")
+        if not (0 <= self.hp.stop_text_token < self.hp.text_tokens_dict_size):
+            raise ValueError(f"stop_text_token {self.hp.stop_text_token} exceeds text vocab {self.hp.text_tokens_dict_size}")
+        if not (0 <= self.hp.start_speech_token < self.hp.speech_tokens_dict_size):
+            raise ValueError(f"start_speech_token {self.hp.start_speech_token} exceeds speech vocab {self.hp.speech_tokens_dict_size}")
+        if not (0 <= self.hp.stop_speech_token < self.hp.speech_tokens_dict_size):
+            raise ValueError(f"stop_speech_token {self.hp.stop_speech_token} exceeds speech vocab {self.hp.speech_tokens_dict_size}")
 
     def prepare_conditioning(self, t3_cond: T3Cond):
         """
@@ -391,4 +403,21 @@ class T3(nn.Module):
 
         # Concatenate all predicted tokens along the sequence dimension.
         predicted_tokens = torch.cat(predicted, dim=1)  # shape: (B, num_tokens)
+        self._reset_kv_cache()
         return predicted_tokens
+
+    def _reset_kv_cache(self):
+        """Clear transformer KV caches to avoid accumulation across inferences."""
+        for attr in ("clear_kv_cache", "_reset_cache", "reset_cache"):
+            if hasattr(self.tfmr, attr):
+                try:
+                    getattr(self.tfmr, attr)()
+                except Exception:
+                    pass
+        if hasattr(self, "patched_model") and hasattr(self.patched_model, "model"):
+            for attr in ("clear_kv_cache", "_reset_cache", "reset_cache"):
+                if hasattr(self.patched_model.model, attr):
+                    try:
+                        getattr(self.patched_model.model, attr)()
+                    except Exception:
+                        pass

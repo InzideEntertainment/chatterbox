@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from safetensors.torch import load_file as load_safetensors
 from huggingface_hub import snapshot_download
 
+from .cache_utils import clear_inference_caches
 from .models.t3 import T3
 from .models.t3.modules.t3_config import T3Config
 from .models.s3tokenizer import S3_SR, drop_invalid_tokens
@@ -298,4 +299,5 @@ class ChatterboxMultilingualTTS:
             )
             wav = wav.squeeze(0).detach().cpu().numpy()
             watermarked_wav = self.watermarker.apply_watermark(wav, sample_rate=self.sr)
+        clear_inference_caches()
         return torch.from_numpy(watermarked_wav).unsqueeze(0)

@@ -6,6 +6,7 @@ import perth
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
+from .cache_utils import clear_inference_caches
 from .models.s3tokenizer import S3_SR
 from .models.s3gen import S3GEN_SR, S3Gen
 
@@ -101,4 +102,5 @@ class ChatterboxVC:
             )
             wav = wav.squeeze(0).detach().cpu().numpy()
             watermarked_wav = self.watermarker.apply_watermark(wav, sample_rate=self.sr)
+        clear_inference_caches()
         return torch.from_numpy(watermarked_wav).unsqueeze(0)
