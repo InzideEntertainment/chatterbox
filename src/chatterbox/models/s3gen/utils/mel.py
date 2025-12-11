@@ -52,34 +52,49 @@ def mel_spectrogram(y, n_fft=1920, num_mels=80, sampling_rate=24000, hop_size=48
         logger.warning(f"Audio values outside normalized range: min={min_val.item():.4f}, max={max_val.item():.4f}")
 
     global mel_basis, hann_window  # pylint: disable=global-statement,global-variable-not-assigned
-    if f"{str(fmax)}_{str(y.device)}" not in mel_basis:
+    device = y.device
+    device_str = str(device)
+    cpu_device = torch.device("cpu")
+
+    mel_key = f"{str(fmax)}_{device_str}"
+    mel_cpu_key = f"{str(fmax)}_cpu"
+
+    if mel_key not in mel_basis or mel_cpu_key not in mel_basis:
         mel = librosa_mel_fn(sr=sampling_rate, n_fft=n_fft, n_mels=num_mels, fmin=fmin, fmax=fmax)
-        mel_basis[str(fmax) + "_" + str(y.device)] = torch.from_numpy(mel).float().to(y.device)
-        hann_window[str(y.device)] = torch.hann_window(win_size).to(y.device)
+        mel_tensor = torch.from_numpy(mel).float()
+        mel_basis[mel_cpu_key] = mel_tensor
+        mel_basis[mel_key] = mel_tensor.to(device)
+
+    if "cpu" not in hann_window:
+        hann_window["cpu"] = torch.hann_window(win_size).to(cpu_device)
+    if device_str not in hann_window:
+        hann_window[device_str] = hann_window["cpu"].to(device)
 
     y = torch.nn.functional.pad(
         y.unsqueeze(1), (int((n_fft - hop_size) / 2), int((n_fft - hop_size) / 2)), mode="reflect"
     )
     y = y.squeeze(1)
 
+    window_cpu = hann_window["cpu"]
+
     spec = torch.view_as_real(
         torch.stft(
-            y,
+            y.to(cpu_device),
             n_fft,
             hop_length=hop_size,
             win_length=win_size,
-            window=hann_window[str(y.device)],
+            window=window_cpu,
             center=center,
             pad_mode="reflect",
             normalized=False,
             onesided=True,
             return_complex=True,
         )
-    )
+    ).to(device)
 
     spec = torch.sqrt(spec.pow(2).sum(-1) + (1e-9))
 
-    spec = torch.matmul(mel_basis[str(fmax) + "_" + str(y.device)], spec)
+    spec = torch.matmul(mel_basis[mel_key], spec)
     spec = spectral_normalize_torch(spec)
 
     return spec
