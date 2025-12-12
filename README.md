@@ -62,6 +62,22 @@ We developed and tested Chatterbox on Python 3.11 on Debian 11 OS; the versions 
 - Each inference run clears mel/resampler caches and Torch CUDA allocator to reduce VRAM/CPU growth.
 - GPU visibility check (inside container): `python3 - <<'EOF'\nimport torch\nprint(torch.cuda.is_available(), torch.cuda.device_count())\nEOF`
 
+## Fresh reinstall on LXC host
+```
+rm -rf /opt/chatterbox
+rm -rf /var/lib/venv/chatterbox
+
+cd /opt
+git clone git@github.com:InzideEntertainment/chatterbox.git
+cd chatterbox
+bash install.sh
+source /opt/chatterbox/venv/bin/activate
+
+python3 gradio_tts_app.py
+# or
+python3 gradio_vc_app.py
+```
+
 # Usage
 ```python
 import torchaudio as ta
