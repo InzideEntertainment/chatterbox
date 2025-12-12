@@ -83,6 +83,10 @@ python3 gradio_tts_app.py
 python3 gradio_vc_app.py
 ```
 
+# Conversation runners
+- JSON-driven: `python3 conversation.py --conversation path/to/conversation.json` (relative paths resolved from the JSON location; outputs to `output/conversation` by default).
+- Inline/local template: `python3 conversation_local.py` (edit speakers/defaults/turns inside the file).
+
 # Usage
 ```python
 import torchaudio as ta
