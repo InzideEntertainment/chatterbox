@@ -56,6 +56,12 @@ pip install -e .
 ```
 We developed and tested Chatterbox on Python 3.11 on Debian 11 OS; the versions of the dependencies are pinned in `pyproject.toml` to ensure consistency. You can modify the code or dependencies in this installation mode.
 
+## LXC GPU passthrough (Proxmox/unpriv containers)
+- Repo includes `install.sh` (run from repo root) that creates a persistent venv at `/var/lib/venv/chatterbox/venv`, symlinks `/opt/chatterbox/venv`, installs CUDA 12.4 wheels for torch/torchaudio, installs the repo editable, and runs a CUDA sanity check.
+- STFT/ISTFT and Kaldi FBANK are forced to CPU to avoid cuFFT errors in LXC passthrough; model weights still run on GPU when visible.
+- Each inference run clears mel/resampler caches and Torch CUDA allocator to reduce VRAM/CPU growth.
+- GPU visibility check (inside container): `python3 - <<'EOF'\nimport torch\nprint(torch.cuda.is_available(), torch.cuda.device_count())\nEOF`
+
 # Usage
 ```python
 import torchaudio as ta
