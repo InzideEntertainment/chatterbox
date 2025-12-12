@@ -128,7 +128,7 @@ class S3Token2Mel(torch.nn.Module):
         if ref_sr != S3GEN_SR:
             ref_wav_24 = get_resampler(ref_sr, S3GEN_SR, device)(ref_wav)
 
-        ref_mels_24 = self.mel_extractor(ref_wav_24).transpose(1, 2).to(device)
+        ref_mels_24 = self.mel_extractor(ref_wav_24.to("cpu")).transpose(1, 2).to(device)
         ref_mels_24_len = None
 
         # Resample to 16kHz

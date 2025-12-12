@@ -47,7 +47,7 @@ def extract_feature(audio):
     feature_times = []
     feature_lengths = []
     for au in audio:
-        feature = Kaldi.fbank(au.unsqueeze(0), num_mel_bins=80)
+        feature = Kaldi.fbank(au.to("cpu").unsqueeze(0), num_mel_bins=80).to(au.device)
         feature = feature - feature.mean(dim=0, keepdim=True)
         features.append(feature)
         feature_times.append(au.shape[0])

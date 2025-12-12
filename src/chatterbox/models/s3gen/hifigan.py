@@ -394,19 +394,28 @@ class HiFTGenerator(nn.Module):
             l.remove_weight_norm()
 
     def _stft(self, x):
+        x_cpu = x.to("cpu")
+        window_cpu = self.stft_window.to("cpu")
         spec = torch.stft(
-            x,
-            self.istft_params["n_fft"], self.istft_params["hop_len"], self.istft_params["n_fft"], window=self.stft_window.to(x.device),
+            x_cpu,
+            self.istft_params["n_fft"], self.istft_params["hop_len"], self.istft_params["n_fft"], window=window_cpu,
             return_complex=True)
-        spec = torch.view_as_real(spec)  # [B, F, TT, 2]
+        spec = torch.view_as_real(spec).to(x.device)  # [B, F, TT, 2]
         return spec[..., 0], spec[..., 1]
 
     def _istft(self, magnitude, phase):
         magnitude = torch.clip(magnitude, max=1e2)
-        real = magnitude * torch.cos(phase)
-        img = magnitude * torch.sin(phase)
-        inverse_transform = torch.istft(torch.complex(real, img), self.istft_params["n_fft"], self.istft_params["hop_len"],
-                                        self.istft_params["n_fft"], window=self.stft_window.to(magnitude.device))
+        magnitude_cpu = magnitude.to("cpu")
+        phase_cpu = phase.to("cpu")
+        real = magnitude_cpu * torch.cos(phase_cpu)
+        img = magnitude_cpu * torch.sin(phase_cpu)
+        inverse_transform = torch.istft(
+            torch.complex(real, img),
+            self.istft_params["n_fft"],
+            self.istft_params["hop_len"],
+            self.istft_params["n_fft"],
+            window=self.stft_window.to("cpu")
+        ).to(magnitude.device)
         return inverse_transform
 
     def decode(self, x: torch.Tensor, s: torch.Tensor = torch.zeros(1, 1, 0)) -> torch.Tensor:
